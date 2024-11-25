@@ -150,6 +150,7 @@ with DailySalesByCategory as (
     where g.CATEGORY = 'ЧИСТОТА'
     group by s.DATE, sh.CITY
 ),
+
 -- вычисление общей ежедневной выручки и доли выручки каждого города
 TotalDailySales as (
     select

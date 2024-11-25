@@ -3,35 +3,35 @@ select * from users
 select * from products
 
 --part1
-WITH AgeGroups AS (
-  SELECT
-    CASE
-      WHEN age BETWEEN 0 AND 20 THEN 'Young'
-      WHEN age BETWEEN 21 AND 49 THEN 'Adult'
-      WHEN age > 50 THEN 'Old'
+with AgeGroups as (
+  select
+    case
+      when age between 0 and 20 then 'Young'
+      when age between 21 and 49 then 'Adult'
+      when age > 50 then 'Old'
       ELSE 'Unknown'
-    END AS age_group,
+    end as age_group,
     city
-  FROM users
+  from users
 )
-SELECT
+select
   city,
   age_group,
-  COUNT(*) AS count_customers
-FROM AgeGroups
-GROUP BY
+  count(*) as count_customers
+from AgeGroups
+group by
   city,
   age_group
-ORDER BY
+order by
   city,
   count_customers DESC;
   
-SELECT 
-    ROUND(AVG(price)::numeric, 2) AS avg_price,
+select 
+    round(avg(price)::numeric, 2) as avg_price,
     category
-FROM products
-WHERE name LIKE '%Hair%' OR name LIKE '%Home%'
-GROUP BY category;
+from products
+where name like '%Hair%' or name like '%Home%'
+group by category;
 
 --part 2
 create table sellers(
@@ -75,6 +75,7 @@ create view table_of_seller_type as(
 
 select * from table_of_seller_type
 
+--в данном запросе под датой регистрации продавца подразумевалась самая ранняя дата
 create view table_of_date_reg as(
 		select table_of_seller_type.*, date_reg_table.date_reg
 			
@@ -94,12 +95,10 @@ create view table_of_max_delivery_difference as(
 	from 
 		table_of_date_reg, (select 
 		max(case when category != 'Bedding' and seller_type = 'poor' then delivery_days end) - min(case when category != 'Bedding' and seller_type = 'poor'  then delivery_days end)
-		as max_delivery_difference
+		as max_delivery_difference --считаем максимальную разницу в доставке
 			from sellers, table_of_date_reg 
 			where sellers.seller_id = table_of_date_reg.seller_id and seller_type = 'poor'
---			group by sellers.seller_id
 			) as delivery_difference_table
---		where table_of_date_reg.seller_id = delivery_difference_table.seller_id
 		where seller_type = 'poor'
 )
 
@@ -107,23 +106,24 @@ select * from table_of_max_delivery_difference
 
 select table_of_max_delivery_difference.*,
 	
+	-- считаем количество месяцев, прошедших с момента самой ранней даты регистрации
 	(case when seller_type = 'poor' then extract(year from (age(now(),  date_reg))) * 12 + extract(month from (age(now(),  date_reg))) end) as month_from_registration
 
 from table_of_max_delivery_difference 
 
 --3
 --в данном запросе под регистрацией не подразумевалась самая ранняя дата для продавца
-SELECT
+select
   seller_id,
-  STRING_AGG(DISTINCT category, ' - ') AS category_pair
-FROM sellers
-WHERE
-  EXTRACT(YEAR FROM date_reg) = 2022
-GROUP BY
+  string_agg(distinct category, ' - ') as category_pair
+from sellers
+where
+  extract(year from date_reg) = 2022
+group by
   seller_id
-HAVING
-  COUNT(DISTINCT category) = 2
-  AND SUM(revenue) > 75000;
+having
+  count(distinct category) = 2
+  and sum(revenue) > 75000;
 
 
 
