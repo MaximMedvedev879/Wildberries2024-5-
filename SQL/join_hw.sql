@@ -18,48 +18,54 @@ create table orders_new_3(
 select * from orders_new_3 
 
 --1
-SELECT c.customer_id, c.name, 
-       MAX(o.shipment_date - o.order_date) AS max_wait_time
-FROM customers_new_3 c
-JOIN orders_new_3 o ON c.customer_id = o.customer_id
-GROUP BY c.customer_id, c.name
-ORDER BY max_wait_time DESC
-LIMIT 1;
+select c.customer_id, c.name, 
+       max(o.shipment_date - o.order_date) as max_wait_time -- вычисляем максимальное время ожидания как разницу между датой отгрузки и датой заказа
+from customers_new_3 c
+join orders_new_3 o on c.customer_id = o.customer_id
+group by c.customer_id, c.name
+order by max_wait_time desc
+limit 1;
 
 --2
-WITH CustomerOrderCounts AS (
-  SELECT customer_id, COUNT(*) AS order_count
-  FROM orders_new_3
-  GROUP BY customer_id
-), CustomerAvgWaitTimes AS (
-  SELECT customer_id, AVG(shipment_date - order_date) AS avg_wait_time
-  FROM orders_new_3
-  GROUP BY customer_id
-), CustomerOrderTotals AS (
-  SELECT customer_id, SUM(order_ammount) AS total_order_amount
-  FROM orders_new_3
-  GROUP BY customer_id
+-- с помощью CTE
+-- считаем количество заказов для каждого клиента
+with CustomerOrderCounts as (
+  select customer_id, count(*) AS order_count
+  from orders_new_3
+  group by customer_id
+),
+-- считаем среднее время ожидания доставки для каждого клиента
+CustomerAvgWaitTimes as (
+  select customer_id, avg(shipment_date - order_date) as avg_wait_time
+  from orders_new_3
+  group by customer_id
+), 
+-- считаем общую сумму заказов для каждого клиента
+CustomerOrderTotals as (
+  select customer_id, sum(order_ammount) as total_order_ammount
+  from orders_new_3
+  group by customer_id
 )
-SELECT c.customer_id, c.name, coc.order_count, cawt.avg_wait_time, cot.total_order_amount
-FROM customers_new_3 c
-JOIN CustomerOrderCounts coc ON c.customer_id = coc.customer_id
-JOIN CustomerAvgWaitTimes cawt ON c.customer_id = cawt.customer_id
-JOIN CustomerOrderTotals cot ON c.customer_id = cot.customer_id
-ORDER BY cot.total_order_amount DESC;
+select c.customer_id, c.name, coc.order_count, cawt.avg_wait_time, cot.total_order_ammount
+from customers_new_3 c
+join CustomerOrderCounts coc on c.customer_id = coc.customer_id
+join CustomerAvgWaitTimes cawt on c.customer_id = cawt.customer_id
+JOIN CustomerOrderTotals cot on c.customer_id = cot.customer_id
+order by cot.total_order_ammount desc;
 
 --3
-SELECT
+select
   c.customer_id,
   c.name,
-  COUNT(*) AS delayed_count,
-  COUNT(DISTINCT case when o.order_status = 'Cancel' then o.order_id end) AS cancelled_count,
+  count(*) as delayed_count, -- количество заказов с задержкой
+  count(distinct case when o.order_status = 'Cancel' then o.order_id end) as cancelled_count, -- отменённые заказы
   sum (order_ammount) as total_ammount
-FROM customers_new_3 AS c
-left JOIN orders_new_3 AS o
-  ON c.customer_id = o.customer_id
-WHERE
-  o.shipment_date > DATE_ADD(o.order_date, INTERVAL '5' DAY)
-GROUP BY
+from customers_new_3 as c
+left join orders_new_3 as o
+  on c.customer_id = o.customer_id
+where
+  o.shipment_date > DATE_ADD(o.order_date, INTERVAL '5' day) -- shipment date > order_date + 5
+group by
   c.customer_id,
   c.name
  order by total_ammount desc
@@ -83,37 +89,43 @@ GROUP BY
  
  select * from orders_2
 
-SELECT p.product_category, SUM(o.order_ammount) AS total_sales
-FROM orders_2 o
-JOIN Products p ON o.product_id = p.product_id
-GROUP BY p.product_category;
+ -- считаем общую сумму продаж для каждой категории продуктов
+select p.product_category, sum(o.order_ammount) as total_sales
+from orders_2 o
+join products p on o.product_id = p.product_id
+group by p.product_category;
 
-SELECT product_category, SUM(order_ammount) AS total_sales
-FROM orders_2 o
-JOIN Products p ON o.product_id = p.product_id
-GROUP BY product_category
-ORDER BY total_sales DESC
-LIMIT 1;
+-- ищем категорию продуктов с наибольшей суммой продаж
+select product_category, sum(order_ammount) as total_sales
+from orders_2 o
+join products p on o.product_id = p.product_id
+group by product_category
+order by total_sales desc
+limit 1; -- самая продаваемая категория
 
---SELECT p.product_category, p.product_name, SUM(o.order_ammount) AS total_sales
---FROM orders_2 o
---JOIN Products p ON o.product_id = p.product_id
---GROUP BY p.product_category, p.product_name
---ORDER BY p.product_category, total_sales DESC;
+-- оставлено для проверки последнего запроса
+--select p.product_category, p.product_name, sum(o.order_ammount) as total_sales
+--from orders_2 o
+--join Products p on o.product_id = p.product_id
+--group by p.product_category, p.product_name
+--order by p.product_category, total_sales desc;
 
-SELECT p.product_category, p.product_name, SUM(o.order_ammount) AS total_sales
-FROM Orders_2 o
-JOIN Products p ON o.product_id = p.product_id
-GROUP BY p.product_category, p.product_name
-HAVING SUM(o.order_ammount) = (
-  SELECT MAX(total_sales)
-  FROM (
-    SELECT p.product_category, p.product_name, SUM(o.order_ammount) AS total_sales
-    FROM Orders_2 o
-    JOIN Products p ON o.product_id = p.product_id
-    GROUP BY p.product_category, p.product_name
-  ) AS subquery
-  WHERE subquery.product_category = p.product_category
+-- находим продукт с наибольшей суммой продаж в одной категории
+select p.product_category, p.product_name, sum(o.order_ammount) as total_sales
+from orders_2 o
+join products p on o.product_id = p.product_id
+group by p.product_category, p.product_name
+-- берем только те продукты, у которых сумма продаж равна максимальной сумме продаж в своей категории:
+having sum(o.order_ammount) = (
+  select max(total_sales)
+  from (
+  	-- вычисляем сумму продаж для каждого продукта
+    select p.product_category, p.product_name, sum(o.order_ammount) as total_sales
+    from orders_2 o
+    join products p on o.product_id = p.product_id
+    group by p.product_category, p.product_name
+  ) as subquery
+  where subquery.product_category = p.product_category
 );
 
 
