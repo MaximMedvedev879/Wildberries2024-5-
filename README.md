@@ -1,2 +1,2 @@
-# Wildberries2024-5-
+# WildberriesTechSchool
 Репозиторий для сдачи домашних работ
